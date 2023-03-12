@@ -84,6 +84,7 @@
             appendLog(item);
         }
 
+        let pingLoop;
 
         const onMesasge = (c) => {
             c.onmessage = function (evt) {
@@ -105,6 +106,8 @@
                 conn.send("PRIVMSG #cohhcarnage :where is cohhs armor?");
                 setTimeout(() => conn.send("PART #cohhcarnage"), 5 * 1000)
 
+                pingLoop = setInterval(() => conn.send("PING"), 10)
+
             }
         }
 
@@ -114,6 +117,7 @@
                 conn = null;
 
                 timeout = setTimeout(() => connectionLoop(), 5 * 1000)
+                pingLoop && clearInterval(pingLoop)
             };
         }
 
