@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	irc "gopkg.in/sorcix/irc.v2"
 )
 
 const (
@@ -34,6 +36,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+type User struct {
+	nickname string
+	realname string
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
@@ -43,6 +50,8 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	user User
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -59,15 +68,47 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(message)
-		c.hub.broadcast <- message
+		parsedMessage := irc.ParseMessage(bytes.NewBuffer(raw).String())
+		// message := bytes.TrimSpace(raw)
+
+		// parse irc message
+
+		switch parsedMessage.Command {
+		case "USER":
+			c.user = User{
+				nickname: parsedMessage.Params[0],
+				realname: parsedMessage.Params[1],
+			}
+		case "JOIN":
+			j := struct {
+				c    *Client
+				room string
+			}{
+				c:    c,
+				room: parsedMessage.Params[0]}
+
+			c.hub.join <- j
+		case "PART":
+			j := struct {
+				c    *Client
+				room string
+			}{
+				c:    c,
+				room: parsedMessage.Params[0]}
+
+			c.hub.part <- j
+		default:
+			log.Printf("TODO Command: %s Params: %s", parsedMessage.Command, strings.Join(parsedMessage.Params, "; "))
+		}
+
+		// c.hub.broadcast <- message
 	}
 }
 

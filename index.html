@@ -98,7 +98,13 @@
 
         const onStart = (c) => {
             c.onopen = () => {
+                conn.send("PASS oauth:123123121231231231231231233123");
+                conn.send("NICK john");
                 conn.send("USER john 0 * :John Smith");
+                conn.send("JOIN #cohhcarnage");
+                conn.send("PRIVMSG #cohhcarnage :where is cohhs armor?");
+                setTimeout(() => conn.send("PART #cohhcarnage"), 5 * 1000)
+
             }
         }
 

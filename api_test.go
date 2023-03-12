@@ -1,4 +1,3 @@
-// endpoints_test.go
 package main
 
 import (
